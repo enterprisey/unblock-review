@@ -5,6 +5,48 @@
     var DECLINE_REASON_HERE = "{" + "{subst:Decline reason here}}"; // broken up to prevent processing
     var ADVERT = " ([[User:Enterprisey/unblock-review|unblock-review]])";
 
+    // Making this a function for unit test reasons.
+    function getInitialText(wikitext, appealReason) {
+        // https://stackoverflow.com/a/6969486/3480193
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+        }
+
+        let regEx = new RegExp(escapeRegExp(appealReason), 'g');
+        let matches = wikitext.matchAll(regEx);
+        matches = [...matches];
+        if( matches.length === 0 ) {
+            throw new Error( "Searching for target text failed!" );
+        }
+        for ( let match of matches ) {
+            var textIdx = match.index;
+            var startIdx = textIdx;
+
+            // check for {{tlx|unblock. if found, this isn't what we want, skip.
+            let startOfSplice = startIdx - 50 < 0 ? 0 : startIdx - 50;
+            var chunkFiftyCharactersWide = wikitext.substring(startOfSplice, startIdx);
+            if ( /\{\{\s*tlx\s*\|\s*unblock/i.test(chunkFiftyCharactersWide) ) {
+                continue;
+            }
+
+            let i = 0;
+            while( wikitext[startIdx] != "{" && i < 50 ) {
+                startIdx--;
+                i++;
+            }
+            if( i == 50 ) {
+                continue;
+            }
+
+            startIdx--; // templates start with two opening curly braces
+
+            var initialText = wikitext.substring( startIdx, textIdx );
+            return initialText;
+        }
+
+        throw new Error( "Searching backwards failed!" );
+    }
+
     if( mw.config.get( "wgNamespaceNumber" ) === 3 ) {
 
         /**
@@ -86,8 +128,8 @@
             var reasonArea = container.querySelector( "textarea" );
             $( container ).find( "button" ).click( function () {
                 var action = $( this ).text().toLowerCase();
-                var someText = hrEl.nextElementSibling.nextElementSibling.childNodes[0].textContent;
-                console.log(someText);
+                var appealReason = hrEl.nextElementSibling.nextElementSibling.childNodes[0].textContent;
+                console.log(appealReason);
                 $.getJSON(
                     mw.util.wikiScript( "api" ),
                     {
@@ -104,36 +146,17 @@
                     var pageId = Object.keys(data.query.pages)[0];
                     wikitext = data.query.pages[pageId].revisions[0]["*"];
 
-                    var textIdx = wikitext.indexOf( someText );
-                    if( textIdx < 0 ) {
-                        console.log( "Searching for target text failed!" );
-                        return;
-                    }
+                    var initialText = getInitialText(wikitext, appealReason);
 
-                    var startIdx = textIdx;
-                    var i = 0;
-                    while( wikitext[startIdx] != "{" && i < 50 ) {
-                        startIdx--;
-                        i++;
-                    }
-                    if( i == 50 ) {
-                        console.log( "Searching backwards failed!" );
-                        return;
-                    }
-
-                    startIdx--; // templates start with two opening curly braces
-
-                    var initialText = wikitext.substring( startIdx, textIdx );
-
-                    // Build reason
+                    // Build accept/decline reason
                     var reason = reasonArea.value;
                     if( !reason.trim() ) {
                         reason = DECLINE_REASON_HERE + " " + SIGNATURE;
                     } else if( !hasSig( reason ) ) {
                         reason = reason + " " + SIGNATURE;
                     }
-                    wikitext = wikitext.replace( initialText + someText, "{" +
-                        "{unblock reviewed|" + action + "=" + reason + "|1=" + someText );
+                    wikitext = wikitext.replace( initialText + appealReason, "{" +
+                        "{unblock reviewed|" + action + "=" + reason + "|1=" + appealReason );
 
                     var summary = ( action === "accept" ? "Accepting" : "Declining" ) +
                         " unblock request" + ADVERT;
