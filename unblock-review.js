@@ -48,13 +48,11 @@
     }
 
     if( mw.config.get( "wgNamespaceNumber" ) === 3 ) {
-
         /**
          * Is there a signature (four tildes) present in the given text,
          * outside of a nowiki element?
          */
         function hasSig( text ) {
-
             // no literal signature?
             if( text.indexOf( SIGNATURE ) < 0 ) return false;
 
@@ -85,7 +83,6 @@
             do {
                 sigMatch = SIG_RE.exec( text );
                 if( sigMatch ) {
-
                     // Check that we're not inside a nowiki
                     for( var nwIdx = nowikiSpanStartIdx; nwIdx <
                         nowikiSpanStarts.length; nwIdx++ ) {
@@ -129,7 +126,6 @@
             $( container ).find( "button" ).click( function () {
                 var action = $( this ).text().toLowerCase();
                 var appealReason = hrEl.nextElementSibling.nextElementSibling.childNodes[0].textContent;
-                console.log(appealReason);
                 $.getJSON(
                     mw.util.wikiScript( "api" ),
                     {
@@ -141,7 +137,6 @@
                         titles: mw.config.get( "wgPageName" )
                     }
                 ).done( function ( data ) {
-
                     // Extract wikitext from API response
                     var pageId = Object.keys(data.query.pages)[0];
                     wikitext = data.query.pages[pageId].revisions[0]["*"];
